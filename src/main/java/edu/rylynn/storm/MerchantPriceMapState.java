@@ -78,11 +78,11 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     @Override
     public void multiPut(List<List<Object>> keys, List<T> vals) {
         Connection connection = getConnection();
-        String sql = "";
+        String sql = "insert into order Values () ";
 
         try {
             Statement statement = connection.createStatement();
-            statement.execute("");
+            statement.execute(sql);
         }catch (SQLException e){
             e.printStackTrace();
         }
