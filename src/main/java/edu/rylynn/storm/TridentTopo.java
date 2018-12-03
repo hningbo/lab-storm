@@ -57,7 +57,7 @@ public class TridentTopo {
 
         @Override
         public Float init(TridentTuple tuple) {
-
+            System.err.println(tuple.getFloatByField("price"));
             return tuple.getFloatByField("price");
         }
 
@@ -92,6 +92,7 @@ public class TridentTopo {
             //merchantName: Oracle |
             String merchantName = order.split("merchantName:")[1].split("\\|")[0].trim();
             float totalPrice = Float.parseFloat(order.split("totalPrice:")[1].split("discount")[0].trim());
+            System.err.println(merchantName+" " + totalPrice);
             tridentCollector.emit(new Values(merchantName, totalPrice));
             //System.out.println(merchantName);
             //System.out.println(totalPrice);
