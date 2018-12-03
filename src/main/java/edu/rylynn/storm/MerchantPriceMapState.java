@@ -67,7 +67,6 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
                 long txid = rs.getLong("txid");
                 float totalPrice = rs.getFloat("totalPrice");
                 result.add(new TransactionalValue(txid, totalPrice));}
-                connection.close();
             } catch (SQLException | UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
