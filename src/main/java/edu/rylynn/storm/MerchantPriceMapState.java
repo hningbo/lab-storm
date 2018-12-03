@@ -84,7 +84,7 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     @Override
     public void multiPut(List<List<Object>> keys, List<T> vals) {
         Connection connection = getConnection();
-        String sql = "insert into order_info(merchantName, totalPrice, txid) values (%s,%f, %d);";
+        String sql = "insert into order_info(merchantName, totalPrice, txid) values ('%s',%f, %d);";
 
             for(int i = 0; i<keys.size(); i++){
                 List<Object> key = keys.get(i);
@@ -96,7 +96,7 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
                     String finalSql = new String(String.format(sql, merchantName, totalPrice, txid).getBytes("utf-8"), "utf-8");
                     System.err.println(finalSql);
                     Statement statement = connection.createStatement();
-                    statement.execute(sql);
+                    statement.execute(finalSql);
                 } catch (UnsupportedEncodingException | SQLException e) {
                     e.printStackTrace();
                 }
