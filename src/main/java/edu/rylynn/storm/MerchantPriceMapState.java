@@ -35,7 +35,15 @@ import java.util.List;
 
 /**
  * 主要是TransactionalMap中的multiUpdate方法，这个方法完成了保证exactly once的大部分操作。
+ *在multiUpdate中，先得到CacheBatchReadsMap中的数据，即标记了是否在缓存中出现过的数据，在这里，数据的结构如下{cached, val}
  *
+ * 对数据进行遍历，有以下几种情况
+ *
+ * 1. 如果该val为空，则对空数据进行操作。
+ * 2. 如果该value的txId等于当前处理的批的txId，并且该数据没有被标记为其key已经在缓存中出现过的，则该数据即为第一次插入的数据，令newVal=val，不做任何修改
+ * 3. 如果不满足1、2条的，即value的txId不等于当前批的txId或该数据的key不是第一次进入，则要对齐进行修改。并把changed标记为true。
+ *
+ * 把进行了修改的数据插入到数据库中。
  */
 
 public class MerchantPriceMapState<T> implements IBackingMap<T> {
@@ -64,8 +72,8 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     参数做的聚集，value即查询的结果.List<List<>>表示一批数据，每个数据有多个查询的键，即为上层groupBy的结果。
 
     CacheBatchReadsMap中拿到的就是TransactionalValue类型，然后将其变成一个RetValue类型，这个类型多了一个boolean类型的域，
-    可以记录有没有被加入CacheBatchReadsMap的HashMap中，如果这个TransactionalValue已经出现在了缓存中，就说明这个数据是
-    由于故障、网络等原因重复发送的，则标记为true，如果还不在TransactionValue中，则说明是第一次出现，则标记为false
+    可以记录key有没有被加入CacheBatchReadsMap的HashMap中，如果这个key已经出现在了缓存中，就说明这个数据是需要更新的
+    即含有这个key的数据不是第一次进入了，则标记为true，如果还不在TransactionValue中，则说明是第一次出现，则标记为false
 
     而在TransactionalMap中又将非空的TransactionalValue从RetValue中提取出来
      */
