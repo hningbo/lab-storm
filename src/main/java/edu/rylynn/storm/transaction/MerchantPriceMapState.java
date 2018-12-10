@@ -1,13 +1,12 @@
-package edu.rylynn.storm;
+package edu.rylynn.storm.transaction;
 
 import com.mysql.jdbc.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.storm.trident.state.TransactionalValue;
 import org.apache.storm.trident.state.map.IBackingMap;
-import org.apache.zookeeper.Transaction;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -78,6 +77,7 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     而在TransactionalMap中又将非空的TransactionalValue从RetValue中提取出来
      */
     @Override
+    @SuppressWarnings("unchecked")
     public List<T> multiGet(List<List<Object>> keys) {
         List<TransactionalValue> result = new ArrayList<>();
         String sql = "select totalPrice, txid from order_info where merchantName='%s';";
@@ -122,11 +122,11 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
                 float totalPrice = (Float)val.getVal();
                 long txid = val.getTxid();
                 try {
-                    String finalSql = new String(String.format(sql, merchantName, totalPrice, txid).getBytes("utf-8"), "utf-8");
+                    String finalSql = new String(String.format(sql, merchantName, totalPrice, txid).getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
                     System.err.println(finalSql);
                     Statement statement = connection.createStatement();
                     statement.execute(finalSql);
-                } catch (UnsupportedEncodingException | SQLException e) {
+                } catch (SQLException e) {
                     e.printStackTrace();
                 }
             }

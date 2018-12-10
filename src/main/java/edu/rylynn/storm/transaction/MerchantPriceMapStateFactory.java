@@ -1,15 +1,10 @@
-package edu.rylynn.storm;
+package edu.rylynn.storm.transaction;
 
 import org.apache.storm.task.IMetricsContext;
 import org.apache.storm.trident.state.State;
 import org.apache.storm.trident.state.StateFactory;
-import org.apache.storm.trident.state.map.IBackingMap;
 import org.apache.storm.trident.state.map.TransactionalMap;
 
-import javax.naming.Context;
-import javax.naming.Name;
-import javax.naming.NamingException;
-import java.util.Hashtable;
 import java.util.Map;
 
 /**
