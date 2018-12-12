@@ -17,6 +17,7 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,8 +57,8 @@ public class TridentWindow {
         hbaseConfig.put("hbase.master", "master:9000");
         hbaseConfig.put("hbase.zookeeper.quorum", "slaver1,slaver2,slaver3");
         hbaseConfig.put("hbase.zookeeper.property.clientPort", "2181");
-        HBaseWindowsStoreFactory hbaseWindowsStoreFactory = new HBaseWindowsStoreFactory(hbaseConfig, "skuWindow", "cf".getBytes("UTF-8"), "skuSum".getBytes("UTF-8"));
-        TridentTopology topology = buildWindowTopo(hbaseWindowsStoreFactory );
+
+        TridentTopology topology = buildWindowTopo(new InMemoryWindowsStoreFactory() );
         cluster.submitTopology("tridentWindow", config, topology.build());
     }
 
