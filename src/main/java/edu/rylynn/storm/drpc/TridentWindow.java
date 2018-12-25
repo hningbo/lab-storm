@@ -35,7 +35,6 @@ public class TridentWindow {
                 new Values("2018-11-21 19:38:30 [bigdata.experiment.storm.OrdersLogGenerator.main()] INFO  bigdata.experiment.storm.OrdersLogGenerator - orderNumber: 461481542800310097 | orderDate: 2018-11-21 19:38:30 | paymentNumber: Alipay-57404294 | paymentDate: 2018-11-21 19:38:30 | merchantName: 暴雪公司 | sku: [ skuName: 黑色连衣裙 skuNum: 3 skuCode: 05opwzo8kv skuPrice: 1000.0 totalSkuPrice: 3000.0; skuName: 黑色连衣裙 skuNum: 1 skuCode: xrzmqija9s skuPrice: 1000.0 totalSkuPrice: 1000.0; skuName: 黑色连衣裙 skuNum: 1 skuCode: f3vbaeu9c2 skuPrice: 399.0 totalSkuPrice: 399.0; ] | price: [ totalPrice: 4399.0 discount: 100.0 paymentPrice: 4299.0 ]"));
         fixedBatchSpout.setCycle(true);
 
-
         topology.newStream("kafkaSpout", fixedBatchSpout).each(new Fields("order"), new SplitVolumn(), new Fields("skuName", "skuNum")).
                 slidingWindow(new BaseWindowedBolt.Duration(60, TimeUnit.SECONDS),
                         new BaseWindowedBolt.Duration(20, TimeUnit.SECONDS), windowsStoreFactory
@@ -47,18 +46,8 @@ public class TridentWindow {
         Config config = new Config();
         LocalCluster cluster = new LocalCluster();
 
-        //TridentTopology topology = buildWindowTopo(new InMamoryWindowsStoreFactory());
-        Map<String , Object> hbaseConfig = new HashMap<>();
-//        configuration.set("hbase.zookeeper.property.clientPort", "2181");
-//
-//        configuration.set("hbase.zookeeper.quorum", "HADOOP1,HADOOP2,HADOOP3,HADOOP4,HADOOP5");
-//
-//        configuration.set("hbase.master", "HADOOP3:60000");
-        hbaseConfig.put("hbase.master", "master:9000");
-        hbaseConfig.put("hbase.zookeeper.quorum", "slaver1,slaver2,slaver3");
-        hbaseConfig.put("hbase.zookeeper.property.clientPort", "2181");
-
-        TridentTopology topology = buildWindowTopo(new InMemoryWindowsStoreFactory() );
+        TridentTopology topology = buildWindowTopo(new InMemoryWindowsStoreFactory());
+        //TridentTopology topology = buildWindowTopo(new MySqlWindowsStoreFactory() );
         cluster.submitTopology("tridentWindow", config, topology.build());
     }
 

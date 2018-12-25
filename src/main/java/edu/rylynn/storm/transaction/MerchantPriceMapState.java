@@ -7,10 +7,7 @@ import org.apache.storm.trident.state.TransactionalValue;
 import org.apache.storm.trident.state.map.IBackingMap;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +17,41 @@ import java.util.List;
  * @classname JDBCState
  * @discription The grouping fields will be the keys in the state,
  * and the aggregation result will be the values in the state
+ * <p>
+ * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+ * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+ * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+ * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+ * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+ * 语句来写，框架不会再修改你的JDBC操作。
+ * <p>
+ * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+ * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+ * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+ * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+ * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+ * 语句来写，框架不会再修改你的JDBC操作。
+ * <p>
+ * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+ * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+ * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+ * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+ * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+ * 语句来写，框架不会再修改你的JDBC操作。
+ * <p>
+ * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+ * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+ * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+ * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+ * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+ * 语句来写，框架不会再修改你的JDBC操作。
+ * <p>
+ * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+ * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+ * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+ * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+ * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+ * 语句来写，框架不会再修改你的JDBC操作。
  */
 
 /**
@@ -47,11 +79,11 @@ import java.util.List;
 
 public class MerchantPriceMapState<T> implements IBackingMap<T> {
     private Connection connection = getConnection();
-    private Logger logger = LogManager.getLogger(MerchantPriceMapState.class);
+    private Logger LOGGER = LogManager.getLogger(MerchantPriceMapState.class);
 
     private static Connection getConnection() {
         String driver = "com.mysql.jdbc.Driver";
-        String url = "jdbc:mysql://10.113.9.116:3306/order_db?useUnicode=true&amp;characterEncoding=UTF-8";
+        String url = "jdbc:mysql://10.113.9.116:3306/order_db?useUnicode=true&characterEncoding=utf8";
         String username = "root";
         String password = "root";
         Connection conn = null;
@@ -76,25 +108,26 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
 
     而在TransactionalMap中又将非空的TransactionalValue从RetValue中提取出来
      */
+
     @Override
     @SuppressWarnings("unchecked")
     public List<T> multiGet(List<List<Object>> keys) {
         List<TransactionalValue> result = new ArrayList<>();
         String sql = "select totalPrice, txid from order_info where merchantName='%s';";
-        for(List<Object> key : keys){
-            String merchantName = (String)key.get(0);
+        for (List<Object> key : keys) {
+            String merchantName = (String) key.get(0);
             try {
                 Statement statement = connection.createStatement();
-                String finalSql = String.format(sql, merchantName);
+                String finalSql = new String(String.format(sql, merchantName).getBytes(), StandardCharsets.UTF_8);
                 System.err.println(finalSql);
                 ResultSet rs = statement.executeQuery(finalSql);
-                if(!rs.next()){
+                if (!rs.next()) {
                     result.add(new TransactionalValue(0L, 0.0F));
+                } else {
+                    long txid = rs.getLong("txid");
+                    float totalPrice = rs.getFloat("totalPrice");
+                    result.add(new TransactionalValue(txid, totalPrice));
                 }
-                else{
-                long txid = rs.getLong("txid");
-                float totalPrice = rs.getFloat("totalPrice");
-                result.add(new TransactionalValue(txid, totalPrice));}
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -112,23 +145,38 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
      */
     @Override
     public void multiPut(List<List<Object>> keys, List<T> vals) {
+        String insertSql = "insert into order_info(merchantName, totalPrice, txid) values ('%s',%f, %d);";
+        String deleteSql = "delete from order_info where merchantName='%s';";
+        PreparedStatement ps = null;
+        String finalSql = null;
+        String deleteSql2 = null;
+        for (int i = 0; i < keys.size(); i++) {
+            List<Object> key = keys.get(i);
+            TransactionalValue val = (TransactionalValue) vals.get(i);
+            String merchantName = (String) key.get(0);
+            float totalPrice = (Float) val.getVal();
+            long txid = val.getTxid();
 
-        String sql = "insert into order_info(merchantName, totalPrice, txid) values ('%s',%f, %d);";
+            System.err.println(merchantName + "," + totalPrice + "," + txid);
 
-            for(int i = 0; i<keys.size(); i++){
-                List<Object> key = keys.get(i);
-                TransactionalValue val = (TransactionalValue)vals.get(i);
-                String merchantName = (String)key.get(0);
-                float totalPrice = (Float)val.getVal();
-                long txid = val.getTxid();
+            finalSql = new String(String.format(insertSql, merchantName, totalPrice, txid).getBytes(), StandardCharsets.UTF_8);
+            deleteSql2 = new String(String.format(deleteSql, merchantName).getBytes(), StandardCharsets.UTF_8);
+            try {
+                System.err.println(finalSql);
+                connection.setAutoCommit(false);
+                ps = connection.prepareStatement(deleteSql2);
+                ps.execute();
+                ps = connection.prepareStatement(finalSql);
+                ps.execute();
+                connection.commit();
+            } catch (SQLException e) {
                 try {
-                    String finalSql = new String(String.format(sql, merchantName, totalPrice, txid).getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
-                    System.err.println(finalSql);
-                    Statement statement = connection.createStatement();
-                    statement.execute(finalSql);
-                } catch (SQLException e) {
-                    e.printStackTrace();
+                    connection.rollback();
+                } catch (SQLException e1) {
+                    e1.printStackTrace();
                 }
+                e.printStackTrace();
             }
+        }
     }
 }
