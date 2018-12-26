@@ -11,60 +11,19 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @author rylynn
- * @version 21/11/2018
- * @classname JDBCState
- * @discription The grouping fields will be the keys in the state,
- * and the aggregation result will be the values in the state
- * <p>
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
- * <p>
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
- * <p>
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
- * <p>
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
- * <p>
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
+
+
+/*
+  TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
+  CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
+  在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
+  调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
+  TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
+  语句来写，框架不会再修改你的JDBC操作。
+
  */
 
-/**
- * TransactionalMap->CachedBatchReadsMap->IBackingMap三层的封装
- * CacheBatchReadsMap的作用是，由于在Trident中常常是以批的方式来进行数据处理，因此设置一个HashMap在内存里来的这批数据缓存下来，
- * 在Map这层抽象中，在框架中我们调用的是TransactionalMap，实际上TransactionalMap再调用CacheBatchReadsMap，CacheBatchReadsMap再
- * 调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
- * TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
- * 语句来写，框架不会再修改你的JDBC操作。
- *
- */
-
-/**
+/*
  * 主要是TransactionalMap中的multiUpdate方法，这个方法完成了保证exactly once的大部分操作。
  *在multiUpdate中，先得到CacheBatchReadsMap中的数据，即标记了是否在缓存中出现过的数据，在这里，数据的结构如下{cached, val}
  *
@@ -77,9 +36,15 @@ import java.util.List;
  * 把进行了修改的数据插入到数据库中。
  */
 
+/**
+ * @author rylynn
+ * @version 21/11/2018
+ * @classname JDBCState
+ * @discription The grouping fields will be the keys in the state,
+ */
 public class MerchantPriceMapState<T> implements IBackingMap<T> {
     private Connection connection = getConnection();
-    private Logger LOGGER = LogManager.getLogger(MerchantPriceMapState.class);
+    //private static final Logger LOGGER = LogManager.getLogger(MerchantPriceMapState.class);
 
     private static Connection getConnection() {
         String driver = "com.mysql.jdbc.Driver";
@@ -136,7 +101,7 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
         return (List<T>) result;
     }
 
-    /*
+    /**
     TODO:key是merchant，vals是price和txid
     这里的price是一个TransactionalValue类型，目前还不知道通过什么传过来的，总之要从value中读取计算的结果以及txid，keys和上面的
     multiGet一样，是从groupBy传过来的类型
@@ -147,9 +112,9 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     public void multiPut(List<List<Object>> keys, List<T> vals) {
         String insertSql = "insert into order_info(merchantName, totalPrice, txid) values ('%s',%f, %d);";
         String deleteSql = "delete from order_info where merchantName='%s';";
-        PreparedStatement ps = null;
-        String finalSql = null;
-        String deleteSql2 = null;
+        PreparedStatement ps;
+        String finalSql;
+        String deleteSql2;
         for (int i = 0; i < keys.size(); i++) {
             List<Object> key = keys.get(i);
             TransactionalValue val = (TransactionalValue) vals.get(i);

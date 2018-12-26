@@ -17,6 +17,7 @@ import java.util.Map;
 public class MerchantPriceMapStateFactory implements StateFactory {
 
     @Override
+    @SuppressWarnings("unchecked")
     public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
         return TransactionalMap.build(new MerchantPriceMapState());
     }
