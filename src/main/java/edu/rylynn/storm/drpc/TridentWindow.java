@@ -3,22 +3,26 @@ package edu.rylynn.storm.drpc;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.LocalDRPC;
+import org.apache.storm.generated.StormTopology;
 import org.apache.storm.topology.base.BaseWindowedBolt;
+import org.apache.storm.trident.TridentState;
 import org.apache.storm.trident.TridentTopology;
 import org.apache.storm.trident.operation.BaseAggregator;
 import org.apache.storm.trident.operation.BaseFunction;
+import org.apache.storm.trident.operation.CombinerAggregator;
 import org.apache.storm.trident.operation.TridentCollector;
+import org.apache.storm.trident.operation.builtin.MapGet;
 import org.apache.storm.trident.testing.FixedBatchSpout;
+import org.apache.storm.trident.testing.MemoryMapState;
 import org.apache.storm.trident.tuple.TridentTuple;
-import org.apache.storm.trident.windowing.InMemoryWindowsStoreFactory;
-import org.apache.storm.trident.windowing.WindowsStoreFactory;
+import org.apache.storm.trident.windowing.config.SlidingDurationWindow;
+import org.apache.storm.trident.windowing.config.WindowConfig;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,9 +32,9 @@ import java.util.stream.Stream;
  */
 
 public class TridentWindow {
-    private static TridentTopology buildWindowTopo(WindowsStoreFactory windowsStoreFactory) {
+    private static StormTopology buildWindowTopo(LocalDRPC drpc) {
         TridentTopology topology = new TridentTopology();
-        LocalDRPC localDRPC = new LocalDRPC();
+
 
         //TridentKafkaConfig tridentKafkaConfig = new TridentKafkaConfig(ZK_HOST, TOPIC, SPOUT_ID);
         FixedBatchSpout fixedBatchSpout = new FixedBatchSpout(new Fields("order"), 3,
@@ -41,26 +45,41 @@ public class TridentWindow {
                 new Values("2018-11-21 19:38:30 [bigdata.experiment.storm.OrdersLogGenerator.main()] INFO  bigdata.experiment.storm.OrdersLogGenerator - orderNumber: 461481542800310097 | orderDate: 2018-11-21 19:38:30 | paymentNumber: Alipay-57404294 | paymentDate: 2018-11-21 19:38:30 | merchantName: 暴雪公司 | sku: [ skuName: 黑色连衣裙 skuNum: 3 skuCode: 05opwzo8kv skuPrice: 1000.0 totalSkuPrice: 3000.0; skuName: 黑色连衣裙 skuNum: 1 skuCode: xrzmqija9s skuPrice: 1000.0 totalSkuPrice: 1000.0; skuName: 黑色连衣裙 skuNum: 1 skuCode: f3vbaeu9c2 skuPrice: 399.0 totalSkuPrice: 399.0; ] | price: [ totalPrice: 4399.0 discount: 100.0 paymentPrice: 4299.0 ]"));
         fixedBatchSpout.setCycle(true);
 
-        topology.newStream("kafkaSpout", fixedBatchSpout).each(new Fields("order"), new SplitVolumn(), new Fields("skuName", "skuNum")).
-                slidingWindow(new BaseWindowedBolt.Duration(60, TimeUnit.SECONDS),
-                        new BaseWindowedBolt.Duration(20, TimeUnit.SECONDS), windowsStoreFactory
-                        , new Fields("skuName", "skuNum"), new SumAggregator(), new Fields("skuWindowNum"));
+        WindowConfig slidingWindow = SlidingDurationWindow.of(BaseWindowedBolt.Duration.seconds(60), BaseWindowedBolt.Duration.seconds(5));
 
-        topology.newDRPCStream("skuNumQuery", localDRPC)
-                .each(new Fields("args"), new ParamsParser(), new Fields("sku"));
+        TridentState state = topology.newStream("kafkaSpout", fixedBatchSpout).
+                each(new Fields("order"), new SplitVolumn(), new Fields("skuName", "skuNum")).
+                window(slidingWindow, new Fields("skuName", "skuNum"), new SumAggregator(), new Fields("skuName", "skuNum")).
+                groupBy(new Fields("skuName")).
+                persistentAggregate(new MemoryMapState.Factory(), new Fields("skuName", "skuNum"), new LongSum(), new Fields("skuTotalNum")).
+                parallelismHint(8);
 
-        return topology;
+        topology.newDRPCStream("args", drpc).
+                each(new Fields("args"), new ParamsParser(), new Fields("skuName")).
+                stateQuery(state, new Fields("skuName"), new MapGet(), new Fields("skuTotalNum"));
+
+        return topology.build();
     }
 
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws InterruptedException {
         Config config = new Config();
+        config.setMaxSpoutPending(20);
         LocalCluster cluster = new LocalCluster();
+        LocalDRPC drpc = new LocalDRPC();
 
-        TridentTopology topology = buildWindowTopo(new InMemoryWindowsStoreFactory());
-        //TridentTopology topology = buildWindowTopo(new MySqlWindowsStoreFactory() );
-        cluster.submitTopology("tridentWindow", config, topology.build());
+
+        StormTopology topology = buildWindowTopo(drpc);
+        cluster.submitTopology("tridentWindow", config, topology);
+
+        Thread.sleep(2000);
+        for (int i = 0; i < 100; i++) {
+            System.out.println("DRPC Result : " + drpc.execute("args", "黑色连衣裙"));
+            Thread.sleep(1000);
+        }
+
     }
+
 
     private static class SumAggregator extends BaseAggregator<HashMap<String, Long>> {
         @Override
@@ -82,14 +101,34 @@ public class TridentWindow {
 
         @Override
         public void complete(HashMap<String, Long> val, TridentCollector collector) {
-            collector.emit(new Values(val));
+
             System.err.println("-------------------------------------");
             System.err.println(new Date());
             for (Map.Entry entry : val.entrySet()) {
+                collector.emit(new Values(entry.getKey(), entry.getValue()));
                 System.err.println(entry.getKey() + " : " + entry.getValue());
             }
 
             System.err.println("-------------------------------------");
+        }
+    }
+
+    private static class LongSum implements CombinerAggregator<Long> {
+
+        @Override
+        public Long init(TridentTuple tuple) {
+            System.out.println(tuple);
+            return tuple.getLong(1);
+        }
+
+        @Override
+        public Long combine(Long val1, Long val2) {
+            return val2;
+        }
+
+        @Override
+        public Long zero() {
+            return 0L;
         }
     }
 
@@ -102,8 +141,8 @@ public class TridentWindow {
          */
 
         /**
-         *  output: field1:MerchantName
-         *  field2: totalPrice
+         * output: field1:MerchantName
+         * field2: totalPrice
          */
         @Override
         public void execute(TridentTuple tuple, TridentCollector collector) {
@@ -122,4 +161,5 @@ public class TridentWindow {
             collector.emit(Stream.of(params.split(",")).collect(Collectors.toList()));
         }
     }
+
 }

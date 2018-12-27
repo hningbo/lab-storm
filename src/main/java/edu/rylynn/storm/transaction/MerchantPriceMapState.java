@@ -1,8 +1,6 @@
 package edu.rylynn.storm.transaction;
 
 import com.mysql.jdbc.Connection;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.storm.trident.state.TransactionalValue;
 import org.apache.storm.trident.state.map.IBackingMap;
 
@@ -20,7 +18,6 @@ import java.util.List;
   调用我们自己实现的IBackingMap，是这么一层的逻辑关系，因此我们要实现的部分是实际上最底层的部分，拿到的数据也都是
   TransactionalMap处理好的，也就是加上了txId的数据，因此SQL语句就要以最终插入数据库的来写。事实上也只能以最后插入数据库的
   语句来写，框架不会再修改你的JDBC操作。
-
  */
 
 /*
@@ -74,7 +71,7 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     而在TransactionalMap中又将非空的TransactionalValue从RetValue中提取出来
      */
 
-    @Override
+    @Override()
     @SuppressWarnings("unchecked")
     public List<T> multiGet(List<List<Object>> keys) {
         List<TransactionalValue> result = new ArrayList<>();
@@ -102,11 +99,11 @@ public class MerchantPriceMapState<T> implements IBackingMap<T> {
     }
 
     /**
-    TODO:key是merchant，vals是price和txid
-    这里的price是一个TransactionalValue类型，目前还不知道通过什么传过来的，总之要从value中读取计算的结果以及txid，keys和上面的
-    multiGet一样，是从groupBy传过来的类型
-    为什么参数vals要设成泛型而不是TransactionalValue型，最早被调用实在TransactionMap中被调用multiPut方法，而这个方法在最初的时候
-    TransactionalMap被调用的时候接收的值就是不确定类型的，是经过TransactionalMap封装后才变成TransactionalValue型的。
+     * TODO:key是merchant，vals是price和txid
+     * 这里的price是一个TransactionalValue类型，目前还不知道通过什么传过来的，总之要从value中读取计算的结果以及txid，keys和上面的
+     * multiGet一样，是从groupBy传过来的类型
+     * 为什么参数vals要设成泛型而不是TransactionalValue型，最早被调用实在TransactionMap中被调用multiPut方法，而这个方法在最初的时候
+     * TransactionalMap被调用的时候接收的值就是不确定类型的，是经过TransactionalMap封装后才变成TransactionalValue型的。
      */
     @Override
     public void multiPut(List<List<Object>> keys, List<T> vals) {

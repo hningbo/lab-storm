@@ -10,7 +10,7 @@ public class MyDRPCClient {
     public static void main(String[] args) throws Exception {
         Map cfg = Utils.readDefaultConfig();
         DRPCClient client = new DRPCClient(cfg, "master", 7001);
-        System.out.println(client.execute("querySkuNum", "黑色连衣裙"));
+        System.out.println(client.execute("skuName", "黑色连衣裙"));
 
     }
 }
